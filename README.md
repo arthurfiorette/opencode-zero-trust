@@ -39,7 +39,7 @@ Add the absolute checkout path to `plugins` in your global `~/.config/opencode/o
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["/absolute/path/to/opencode-zero-trust"]
+  "plugins": ["opencode-zero-trust"]
 }
 ```
 
@@ -93,7 +93,7 @@ Options use OpenCode's package-and-options syntax:
   "$schema": "https://opencode.ai/config.json",
   "plugins": [
     {
-      "package": "/absolute/path/to/opencode-zero-trust",
+      "package": "opencode-zero-trust",
       "options": {
         "hostname": "opencode-mac.example.com",
         "credentialsFile": "/absolute/path/to/.cloudflared/TUNNEL-UUID.json",
@@ -107,15 +107,15 @@ Options use OpenCode's package-and-options syntax:
 }
 ```
 
-| Option | Type | Default | Behavior |
-| --- | --- | --- | --- |
-| `hostname` | DNS hostname | Required when configured | Exact public hostname, normalized to lowercase. |
-| `credentialsFile` | Absolute path | Required when configured | Locally-managed Named Tunnel credentials JSON. The parent validates it and derives `TunnelID`. |
-| `access.teamName` | Cloudflare team slug | Required when configured | Lowercase letters, digits, and internal hyphens; no domain or URL. |
-| `access.audience` | 64-character hexadecimal string | Required when configured | Access application's AUD tag, normalized to lowercase. Replace the example value. |
-| `serviceFile` | Absolute path | Default managed-service registration | Existing OpenCode service registration for a custom channel or host. |
-| `cloudflaredPath` | Command name or absolute executable path | `cloudflared` | User-installed connector executable, without arguments. |
-| `nodePath` | Command name or absolute executable path | `node` | Separately installed Node.js 24.16+ helper runtime, without arguments. |
+| Option            | Type                                     | Default                              | Behavior                                                                                       |
+| ----------------- | ---------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `hostname`        | DNS hostname                             | Required when configured             | Exact public hostname, normalized to lowercase.                                                |
+| `credentialsFile` | Absolute path                            | Required when configured             | Locally-managed Named Tunnel credentials JSON. The parent validates it and derives `TunnelID`. |
+| `access.teamName` | Cloudflare team slug                     | Required when configured             | Lowercase letters, digits, and internal hyphens; no domain or URL.                             |
+| `access.audience` | 64-character hexadecimal string          | Required when configured             | Access application's AUD tag, normalized to lowercase. Replace the example value.              |
+| `serviceFile`     | Absolute path                            | Default managed-service registration | Existing OpenCode service registration for a custom channel or host.                           |
+| `cloudflaredPath` | Command name or absolute executable path | `cloudflared`                        | User-installed connector executable, without arguments.                                        |
+| `nodePath`        | Command name or absolute executable path | `node`                               | Separately installed Node.js 24.16+ helper runtime, without arguments.                         |
 
 Omit options or use `{}` to remain unconfigured. Otherwise, `hostname`, `credentialsFile`, and both Access fields are required together. Partial configuration and unknown options are rejected. Hostnames cannot be URLs, IP addresses, wildcards, or single-label names. Paths must be absolute where specified; `~` is not expanded. Do not put tokens, passwords, or credential contents in plugin options.
 
@@ -123,10 +123,10 @@ Only the default background managed service is discovered automatically. Discove
 
 ### Public exports
 
-| Export | Purpose |
-| --- | --- |
-| `opencode-zero-trust` | Default server plugin definition |
-| `opencode-zero-trust/tui` | Default terminal plugin definition |
+| Export                    | Purpose                                                      |
+| ------------------------- | ------------------------------------------------------------ |
+| `opencode-zero-trust`     | Default server plugin definition                             |
+| `opencode-zero-trust/tui` | Default terminal plugin definition                           |
 | `opencode-zero-trust/rpc` | `ZeroTrust` RPC definition, status/pairing schemas and types |
 
 RPC calls target the Location where the plugin is loaded:
@@ -144,16 +144,16 @@ See [the RPC schemas](src/rpc.ts) for the complete error-code enum. `/zero-trust
 pnpm check
 ```
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm build` | Compile ESM and TypeScript declarations into `dist/` |
-| `pnpm format` | Format using the shared Biome configuration |
-| `pnpm lint-ci` | Check formatting and lint rules without writing files |
-| `pnpm test-types` | Typecheck source and tests |
-| `pnpm test` | Run configuration, lifecycle, and terminal-command unit tests |
+| Command                 | Purpose                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `pnpm build`            | Compile ESM and TypeScript declarations into `dist/`                                  |
+| `pnpm format`           | Format using the shared Biome configuration                                           |
+| `pnpm lint-ci`          | Check formatting and lint rules without writing files                                 |
+| `pnpm test-types`       | Typecheck source and tests                                                            |
+| `pnpm test`             | Run configuration, lifecycle, and terminal-command unit tests                         |
 | `pnpm test:integration` | Load the plugin in an isolated real OpenCode SDK host and exercise RPC/authentication |
-| `pnpm test:package` | Pack, install, and smoke-test the compiled public exports in a temporary consumer |
-| `pnpm check` | Run lint, typecheck, tests, build, and package verification |
+| `pnpm test:package`     | Pack, install, and smoke-test the compiled public exports in a temporary consumer     |
+| `pnpm check`            | Run lint, typecheck, tests, build, and package verification                           |
 
 Tests use a fake connector and an isolated real SDK host, not a live Cloudflare tunnel. They do not use your running daemon, personal OpenCode database, model credentials, or Cloudflare account, and issue no model requests. Live DNS/Access behavior and SSE/WebSocket traffic through Cloudflare remain unverified. Cross-platform lifecycle results must come from CI, not an assumption based on local macOS checks.
 

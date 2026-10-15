@@ -1,0 +1,18 @@
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  tree-sitter-bash: true
+  tree-sitter-powershell: true
+minimumReleaseAgeExclude:
+  - '@opencode/ai@2.0.29'
+  - '@opencode/client@2.0.29'
+  - '@opencode/codemode@2.0.29'
+  - '@opencode/core@2.0.29'
+  - '@opencode/plugin-browser@2.0.29'
+  - '@opencode/plugin@2.0.29'
+  - '@opencode/protocol@2.0.29'
+  - '@opencode/schema@2.0.29'
+  - '@opencode/sdk@2.0.29'
+  - '@opencode/server@2.0.29'
+  - '@opencode/simulation@2.0.29'
+  - '@opencode/util@2.0.29'

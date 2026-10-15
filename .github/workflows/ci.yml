@@ -1,0 +1,32 @@
+name: Code CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test code (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v3
+        with:
+          runtime: node@24.16.0
+          cache: true
+          install: true
+
+      - name: Check
+        run: pnpm check

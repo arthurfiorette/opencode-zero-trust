@@ -1,12 +1,46 @@
 import { Rpc } from '@opencode/plugin/rpc';
 import { z } from 'zod';
 
+export const stateSchema = z.enum([
+  'unconfigured',
+  'starting',
+  'connecting',
+  'ready',
+  'restarting',
+  'error'
+]);
+
+export const errorSchema = z.enum([
+  'daemon-unavailable',
+  'daemon-mismatch',
+  'daemon-auth-required',
+  'daemon-not-loopback',
+  'credentials-invalid',
+  'credentials-permissions',
+  'node-unavailable',
+  'cloudflared-unavailable',
+  'cloudflared-exited',
+  'helper-unavailable',
+  'helper-protocol-error',
+  'configuration-conflict'
+]);
+
 export const statusSchema = z.strictObject({
-  state: z.literal('not-implemented'),
-  hostname: z.string().optional()
+  state: stateSchema,
+  hostname: z.string().optional(),
+  url: z.url().optional(),
+  helperPid: z.number().int().positive().optional(),
+  connectorPid: z.number().int().positive().optional(),
+  error: errorSchema.optional()
+});
+
+export const pairingSchema = z.strictObject({
+  url: z.url(),
+  expiresIn: z.number().int().positive()
 });
 
 export type Status = z.output<typeof statusSchema>;
+export type Pairing = z.output<typeof pairingSchema>;
 
 export const ZeroTrust = Rpc.define({
   id: 'opencode-zero-trust',
@@ -14,6 +48,14 @@ export const ZeroTrust = Rpc.define({
     status: {
       input: z.strictObject({}),
       output: statusSchema
+    },
+    pair: {
+      input: z.strictObject({}),
+      output: pairingSchema,
+      errors: {
+        not_ready: z.strictObject({ state: stateSchema }),
+        unavailable: z.strictObject({})
+      }
     }
   },
   events: {}

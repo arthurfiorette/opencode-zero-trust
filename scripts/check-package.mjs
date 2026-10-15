@@ -21,7 +21,7 @@ const run = (args, cwd) =>
   execFileSync(npmCli ? process.execPath : 'npm', npmCli ? [npmCli, ...args] : args, {
     cwd,
     encoding: 'utf8',
-    timeout: 180_000,
+    timeout: 600_000,
     maxBuffer: 10 * 1024 * 1024
   });
 
@@ -32,7 +32,7 @@ try {
   );
   assert.ok(packed);
 
-  for (const name of ['index', 'tui', 'rpc']) {
+  for (const name of ['index', 'tui', 'rpc', 'helper']) {
     assert.ok(
       packed.files.some((file) => file.path === `dist/${name}.js`),
       `Missing ${name} runtime export`
@@ -43,7 +43,9 @@ try {
     );
   }
   assert.ok(
-    packed.files.every((file) => /^(dist\/|package\.json$|README\.md$|LICENSE$)/.test(file.path))
+    packed.files.every((file) =>
+      /^(dist\/|(?:index|tui|rpc)\.js$|package\.json$|README\.md$|LICENSE$)/.test(file.path)
+    )
   );
 
   await writeFile(
@@ -70,15 +72,21 @@ try {
   await writeFile(
     path.join(directory, 'smoke.mjs'),
     `import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import server from 'opencode-zero-trust';
 import tui from 'opencode-zero-trust/tui';
 import { ZeroTrust, statusSchema } from 'opencode-zero-trust/rpc';
+import { Host } from '@opencode/plugin/host';
 assert.equal(server.id, 'opencode-zero-trust');
 assert.equal(typeof server.setup, 'function');
 assert.equal(tui.id, 'opencode-zero-trust.tui');
 assert.equal(typeof tui.setup, 'function');
 assert.ok(ZeroTrust);
-assert.deepEqual(statusSchema.parse({ state: 'not-implemented' }), { state: 'not-implemented' });
+assert.deepEqual(statusSchema.parse({ state: 'unconfigured' }), { state: 'unconfigured' });
+const entries = Host.resolve({ directory: fileURLToPath(new URL('./node_modules/opencode-zero-trust/', import.meta.url)) });
+assert.ok(entries.server);
+assert.ok(entries.tui);
+assert.ok(entries.rpc);
 `
   );
 

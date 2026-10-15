@@ -9,18 +9,28 @@
 - [x] Verify unit tests, isolated OpenCode integration, packed exports, and cross-platform CI configuration locally.
 - [x] Create the GitHub repository. Commit and push the verified foundation as the delivery step.
 
-## Tunnel implementation (not implemented)
+## Tunnel implementation (active)
 
-- [ ] Establish process-wide tunnel ownership across concurrent Location plugin instances and plugin reloads.
-- [ ] Start on first plugin activation. Document that daemon startup without an activated Location does not load this plugin.
-- [ ] Resolve the hosting daemon through public APIs and verify its identity before selecting the tunnel target. Never start another daemon as a discovery side effect.
-- [ ] Supervise `cloudflared` as a subprocess on Windows, Linux, and macOS, without an OS-level watcher service.
+Implementation scope: locally-managed Named Tunnel with an existing credentials JSON file, DNS route, and Cloudflare Access application. No Cloudflare account mutations or live exposure during development. The plugin will generate a connector-only JSON/YAML config with exact-host ingress and a 404 fallback, and require Access JWT validation at the connector. Runtime config remains opt-in; an unconfigured plugin is inert.
+
+Process ownership: one process-global manager starts a Node helper on first configured Location activation. An IPC channel ties the helper to the daemon's lifetime. The helper supervises cloudflared and terminates it when the IPC channel closes. Location cleanup does not close the shared manager. The helper receives no OpenCode password. Its environment excludes model and Cloudflare admin secrets. Node 24.16+ and cloudflared must be installed separately.
+
+Public configuration planned for this implementation: `hostname`, `credentialsFile`, `access: { teamName, audience }`, optional absolute `serviceFile`, optional `cloudflaredPath` and `nodePath` (bare command name or absolute executable path). A partial configuration is rejected. `hostname` alone is no longer sufficient to enable a tunnel. No raw tokens or passwords in plugin options.
+
+Public RPC: `status({})` returns `state` (`unconfigured`, `starting`, `connecting`, `ready`, `restarting`, `error`), optional hostname, URL, helper/connector PID, and a sanitized error code. `pair({})` returns `{ url, expiresIn }` after checking readiness and requesting a single-use code from the native daemon API. Expected pairing failures use declared RPC errors, never raw transport errors.
+
+- [x] Establish process-wide tunnel ownership across concurrent Location plugin instances and plugin reloads.
+- [x] Start on first plugin activation. Document that daemon startup without an activated Location does not load this plugin.
+- [x] Resolve the hosting daemon through public APIs and verify its identity before selecting the tunnel target. Never start another daemon as a discovery side effect.
+- [x] Implement `cloudflared` subprocess supervision without an OS-level watcher service. Platform results remain a separate verification gate.
 - [ ] Verify normal shutdown, abrupt daemon death, connector crashes, network recovery, duplicate activations, and conflicting configuration.
-- [ ] If a helper is required, bind it to the daemon using a process-lifetime connection. A PID file alone is not proof of ownership.
-- [ ] Require preconfigured Named Tunnel credentials and a stable per-device hostname for the first functional release.
-- [ ] Keep credentials out of RPC responses, logs, URLs, and process arguments. Avoid inheriting unrelated daemon secrets into child processes.
+- [x] Bind the helper to the daemon through IPC. Real-process tests cover normal stop and abrupt parent death; force-killing the helper itself is a documented orphan risk.
+- [x] Require preconfigured Named Tunnel credentials and a stable per-device hostname for the first functional release.
+- [x] Keep credentials out of RPC responses, logs, URLs, and process arguments. Avoid inheriting unrelated daemon secrets into child processes.
 - [ ] Test Cloudflare Access together with native OpenCode authentication, SSE, and terminal WebSocket traffic.
-- [ ] Extend `/zero-trust` with status and an expiring, single-use pairing QR code. Do not conflict with OpenCode's existing `/connect` command.
+- [x] Extend `/zero-trust` with status and an expiring, single-use pairing QR code. Do not conflict with OpenCode's existing `/connect` command.
+
+Local verification includes isolated configured SDK activation through the actual package loader, authenticated discovery, manager/helper startup, required Access ingress configuration, native pairing issuance, reuse across Location reloads, and failure without helper replacement. Only the external connector executable is substituted at the launch boundary. Offline ingress validation passed with installed cloudflared 2026.10.0. Live Cloudflare and camera scanning remain unverified.
 
 ## Hosted multi-server UI (separate deployment)
 

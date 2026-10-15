@@ -3,8 +3,8 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { LocationRef } from '@opencode/client';
 import { OpenCode } from '@opencode/sdk';
-import plugin from '../../src/index.js';
-import { type Status, ZeroTrust } from '../../src/rpc.js';
+import plugin from 'opencode-zero-trust';
+import { type Status, ZeroTrust } from 'opencode-zero-trust/rpc';
 
 const directory = process.env.OPENCODE_TEST_ROOT;
 assert.ok(directory, 'This fixture must run through the isolated integration test.');
@@ -25,7 +25,12 @@ try {
     await mkdir(location.directory);
     await host.sessions.create({ location });
     const status: Status = await host.rpc(ZeroTrust).status({}, { location });
-    assert.deepEqual(status, { state: 'not-implemented' });
+    assert.deepEqual(status, { state: 'unconfigured' });
+    await assert.rejects(host.rpc(ZeroTrust).pair({}, { location }), (error: unknown) => {
+      assert.ok(error && typeof error === 'object' && 'type' in error);
+      assert.equal(error.type, 'not_ready');
+      return true;
+    });
   }
 
   console.log('OpenCode integration passed');

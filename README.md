@@ -157,6 +157,8 @@ pnpm check
 
 Tests use a fake connector and an isolated real SDK host, not a live Cloudflare tunnel. They do not use your running daemon, personal OpenCode database, model credentials, or Cloudflare account, and issue no model requests. Live DNS/Access behavior and SSE/WebSocket traffic through Cloudflare remain unverified. Cross-platform lifecycle results must come from CI, not an assumption based on local macOS checks.
 
+The lifecycle, SDK integration, and packed-consumer checks [passed on Windows, Linux, and macOS](https://github.com/arthurfiorette/opencode-zero-trust/actions/runs/38682707950) at commit `6590947`.
+
 The SDK development dependency includes native parser addons. Installing it may require Python and a C/C++ build toolchain. Their build scripts are explicitly approved in `pnpm-workspace.yaml`; CI uses hosted runners with those tools available.
 
 See [AGENTS.md](AGENTS.md) for development constraints and [PLAN.md](PLAN.md) for the remaining work.

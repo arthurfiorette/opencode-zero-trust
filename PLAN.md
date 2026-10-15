@@ -23,14 +23,14 @@ Public RPC: `status({})` returns `state` (`unconfigured`, `starting`, `connectin
 - [x] Start on first plugin activation. Document that daemon startup without an activated Location does not load this plugin.
 - [x] Resolve the hosting daemon through public APIs and verify its identity before selecting the tunnel target. Never start another daemon as a discovery side effect.
 - [x] Implement `cloudflared` subprocess supervision without an OS-level watcher service. Platform results remain a separate verification gate.
-- [ ] Verify normal shutdown, abrupt daemon death, connector crashes, network recovery, duplicate activations, and conflicting configuration.
+- [x] Verify normal shutdown, abrupt daemon death, connector crashes, network recovery, duplicate activations, and conflicting configuration on Windows, Linux, and macOS using isolated fake-connector processes. [Passing CI run](https://github.com/arthurfiorette/opencode-zero-trust/actions/runs/38682707950).
 - [x] Bind the helper to the daemon through IPC. Real-process tests cover normal stop and abrupt parent death; force-killing the helper itself is a documented orphan risk.
 - [x] Require preconfigured Named Tunnel credentials and a stable per-device hostname for the first functional release.
 - [x] Keep credentials out of RPC responses, logs, URLs, and process arguments. Avoid inheriting unrelated daemon secrets into child processes.
 - [ ] Test Cloudflare Access together with native OpenCode authentication, SSE, and terminal WebSocket traffic.
 - [x] Extend `/zero-trust` with status and an expiring, single-use pairing QR code. Do not conflict with OpenCode's existing `/connect` command.
 
-Local verification includes isolated configured SDK activation through the actual package loader, authenticated discovery, manager/helper startup, required Access ingress configuration, native pairing issuance, reuse across Location reloads, and failure without helper replacement. Only the external connector executable is substituted at the launch boundary. Offline ingress validation passed with installed cloudflared 2026.10.0. Live Cloudflare and camera scanning remain unverified.
+Verification includes isolated configured SDK activation through the actual package loader, authenticated discovery, manager/helper startup, required Access ingress configuration, native pairing issuance, reuse across Location reloads, and failure without helper replacement. All 52 unit tests, two SDK integration tests, build/type/lint checks, and packed-consumer checks passed in CI on Windows, Linux, and macOS at commit `6590947`. Windows helper processes are detached from Node's kill-on-parent-exit job so they can perform IPC cleanup; connector processes remain attached to the helper. Only the external connector executable is substituted at the launch boundary. Offline ingress validation passed with installed cloudflared 2026.10.0. Live Cloudflare and camera scanning remain unverified.
 
 ## Hosted multi-server UI (separate deployment)
 

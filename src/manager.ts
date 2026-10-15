@@ -87,6 +87,8 @@ export class TunnelManager {
       execArgv: [],
       env: childEnvironment(),
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      // Windows otherwise kills the helper with the daemon's child-process job before IPC cleanup can run.
+      detached: process.platform === 'win32',
       windowsHide: true
     });
     helper.on('message', (message: unknown) => {

@@ -282,15 +282,44 @@ test('abrupt parent death closes IPC and cleans up the helper-owned connector', 
     execArgv: [],
     stdio: ['ignore', 'ignore', 'ignore', 'ipc']
   });
+  const messages: unknown[] = [];
+  parent.on('message', (message: unknown) => messages.push(message));
   t.after(() => parent.kill('SIGKILL'));
   const [run] = await until(f.runs, (values) => values.length > 0);
   assert.ok(run);
   parent.kill('SIGKILL');
   await exited(parent);
-  await until(
-    () => exists(run.configFile),
-    (value) => !value
-  );
+  try {
+    await until(
+      () => exists(run.configFile),
+      (value) => !value
+    );
+  } catch (error) {
+    const owner = messages.find(
+      (message) =>
+        message &&
+        typeof message === 'object' &&
+        'type' in message &&
+        message.type === 'parent-ready'
+    );
+    const helperPid =
+      owner && typeof owner === 'object' && 'pid' in owner && typeof owner.pid === 'number'
+        ? owner.pid
+        : undefined;
+    throw new Error(
+      JSON.stringify({
+        parentExitCode: parent.exitCode,
+        parentSignal: parent.signalCode,
+        helperPid,
+        helperAlive: helperPid ? alive(helperPid) : undefined,
+        connectorPid: run.pid,
+        connectorAlive: alive(run.pid),
+        configExists: await exists(run.configFile),
+        messages
+      }),
+      { cause: error }
+    );
+  }
   assert.equal(alive(run.pid), false);
 });
 

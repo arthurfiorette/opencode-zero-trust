@@ -22,7 +22,7 @@ Add this to your global `~/.config/opencode/opencode.json(c)` (or `$XDG_CONFIG_H
     {
       "package": "opencode-zero-trust@latest",
       "options": {
-        "hostname": "opencode-mac.example.com"
+        "hostname": "opencode-{os}.example.com"
       }
     }
   ]
@@ -69,17 +69,17 @@ Do not also run `cloudflared tunnel run` or install another connector service fo
 
 ## Configuration
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `hostname` | Required | Public DNS hostname, optionally using the variables below. |
-| `credentialsFile` | Sole `~/.cloudflared/<UUID>.json` | Tunnel credentials path; absolute or starting with `~/`. |
-| `access` | Omitted | Connector-side Access JWT validation; both fields below are required. |
-| `autoDns` | `true` | Create a missing hostname route using the existing Cloudflare login. |
-| `autoStart` | `true` | Start on plugin activation. Set `false` to require an explicit Connect action. |
-| `preventTransform` | `false` | Route through a local header proxy that appends `no-transform` to HTML Cache-Control. |
-| `nodePath` | `node` | Command name or absolute executable path, without arguments. |
-| `cloudflaredPath` | `cloudflared` | Command name or absolute executable path, without arguments. |
-| `serviceFile` | Default managed service | Absolute service-registration path for a custom channel or host. |
+| Option             | Default                           | Description                                                                           |
+| ------------------ | --------------------------------- | ------------------------------------------------------------------------------------- |
+| `hostname`         | Required                          | Public DNS hostname, optionally using the variables below.                            |
+| `credentialsFile`  | Sole `~/.cloudflared/<UUID>.json` | Tunnel credentials path; absolute or starting with `~/`.                              |
+| `access`           | Omitted                           | Connector-side Access JWT validation; both fields below are required.                 |
+| `autoDns`          | `true`                            | Create a missing hostname route using the existing Cloudflare login.                  |
+| `autoStart`        | `true`                            | Start on plugin activation. Set `false` to require an explicit Connect action.        |
+| `preventTransform` | `false`                           | Route through a local header proxy that appends `no-transform` to HTML Cache-Control. |
+| `nodePath`         | `node`                            | Command name or absolute executable path, without arguments.                          |
+| `cloudflaredPath`  | `cloudflared`                     | Command name or absolute executable path, without arguments.                          |
+| `serviceFile`      | Default managed service           | Absolute service-registration path for a custom channel or host.                      |
 
 `credentialsFile` expands `~` and `~/` using `os.homedir()` (`~\` also works on Windows). Other path options still require absolute paths or the documented command names. Unknown options and invalid hostnames are rejected. Native OpenCode authentication must remain enabled.
 
@@ -87,11 +87,11 @@ Do not also run `cloudflared tunnel run` or install another connector service fo
 
 Use `oc-{hostname}.example.com` or `oc-{username}-{os}.example.com`:
 
-| Variable | Value |
-| --- | --- |
-| `{username}` | `os.userInfo().username` |
+| Variable     | Value                             |
+| ------------ | --------------------------------- |
+| `{username}` | `os.userInfo().username`          |
 | `{hostname}` | `os.hostname()`, the machine name |
-| `{os}` | `macos`, `windows`, or `linux` |
+| `{os}`       | `macos`, `windows`, or `linux`    |
 
 Add a signed character limit after a comma: `{hostname,5}` takes the first five normalized characters, and `{hostname,-5}` takes the last five. For example, `oc-{hostname,5}.example.com`. Limits run from 1 to 63; truncation can create collisions, so choose distinct machine names or limits.
 

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { homedir, hostname, platform, userInfo } from 'node:os';
+import { syncBuiltinESMExports } from 'node:module';
+import os, { homedir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { ZodError } from 'zod';
@@ -91,16 +92,24 @@ test('enables the no-transform proxy only with an explicit boolean option', () =
   });
 });
 
-test('hostname variables support first and last character limits', () => {
-  const full = parseOptions({ hostname: '{hostname}.example.com' })?.hostname.split('.')[0];
-  assert.ok(full);
+test('hostname variables support first and last character limits', (context) => {
+  context.mock.method(os, 'hostname', () => 'Build Mác.local');
+  syncBuiltinESMExports();
+  context.after(() => {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  assert.equal(
+    parseOptions({ hostname: '{hostname}.example.com' })?.hostname,
+    'build-mac-local.example.com'
+  );
   assert.equal(
     parseOptions({ hostname: '{hostname,5}.example.com' })?.hostname,
-    `${full.slice(0, 5).replace(/-+$/, '')}.example.com`
+    'build.example.com'
   );
   assert.equal(
     parseOptions({ hostname: '{hostname,-5}.example.com' })?.hostname,
-    `${full.slice(-5).replace(/^-+/, '')}.example.com`
+    'local.example.com'
   );
   for (const expression of [
     'hostname,0',
@@ -115,6 +124,20 @@ test('hostname variables support first and last character limits', () => {
       name: 'ZodError'
     });
   }
+});
+
+test('long machine names require explicit truncation to satisfy DNS label limits', (context) => {
+  context.mock.method(os, 'hostname', () => 'a'.repeat(80));
+  syncBuiltinESMExports();
+  context.after(() => {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  assert.throws(() => parseOptions({ hostname: '{hostname}.example.com' }), { name: 'ZodError' });
+  assert.equal(
+    parseOptions({ hostname: '{hostname,5}.example.com' })?.hostname,
+    'aaaaa.example.com'
+  );
 });
 
 test('expands credentialsFile home paths while preserving absolute paths', () => {
@@ -140,35 +163,27 @@ test('expands credentialsFile home paths while preserving absolute paths', () =>
   }
 });
 
-test('resolves local hostname variables as DNS labels', () => {
-  const os =
-    new Map([
-      ['darwin', 'macos'],
-      ['win32', 'windows'],
-      ['linux', 'linux']
-    ]).get(platform()) ?? platform();
-  const resolved = parseOptions({ hostname: '{username}.{hostname}.{os}.example.com' });
-  assert.ok(resolved);
-  const labels = resolved.hostname.split('.');
-  assert.equal(
-    labels[0],
-    userInfo()
-      .username.normalize('NFKD')
-      .toLowerCase()
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  );
-  assert.equal(
-    labels[1],
-    hostname()
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  );
-  assert.equal(labels[2], os);
-  assert.match(resolved.hostname, /^[a-z0-9-]+\.[a-z0-9-]+\.[a-z0-9-]+\.example\.com$/);
-});
+for (const [platform, expected] of [
+  ['darwin', 'macos'],
+  ['win32', 'windows'],
+  ['linux', 'linux']
+] as const) {
+  test(`resolves local hostname variables as DNS labels on ${platform}`, (context) => {
+    const user = os.userInfo();
+    context.mock.method(os, 'hostname', () => 'Build Mác.local');
+    context.mock.method(os, 'userInfo', () => ({ ...user, username: 'Árthur_Dev' }));
+    context.mock.method(os, 'platform', () => platform);
+    syncBuiltinESMExports();
+    context.after(() => {
+      context.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    assert.equal(
+      parseOptions({ hostname: '{username}.{hostname}.{os}.example.com' })?.hostname,
+      `arthur-dev.build-mac-local.${expected}.example.com`
+    );
+  });
+}
 
 test('rejects unknown and malformed hostname variables', () => {
   for (const hostname of [

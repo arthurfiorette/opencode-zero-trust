@@ -12,7 +12,7 @@ const executable = z
 
 const variables = new Map<string, () => string>([
   ['username', () => userInfo().username],
-  ['hostname', hostname],
+  ['hostname', () => hostname()],
   [
     'os',
     () => {

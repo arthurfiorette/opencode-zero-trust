@@ -60,6 +60,8 @@ test('QR-only dialog mounts cold, encodes the URL, and discards an expired QR', 
   );
   try {
     await showQrDialog(context, pairing, Date.now());
+    // The initial mount still exercises the loading placeholder before this import settles.
+    await import('../../dist/qr-panel.js');
     await rendered.waitForFrame((frame) => frame.includes('█'));
     const frame = rendered.captureCharFrame();
     for (const unwanted of [

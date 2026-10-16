@@ -91,6 +91,8 @@ test('cold sidebar has stable actions, hover contrast, release activation, and n
     { width: 37, height: 30 }
   );
   try {
+    // Mount cold first, then wait for external module I/O; renderer idle does not mean lazy loading finished.
+    await import('../../dist/sidebar-view.js');
     await rendered.waitForFrame((frame) => frame.includes('Zero Trust'));
     const find = (id) => rendered.renderer.root.findDescendantById(id);
     const click = (node, button = MouseButton.LEFT) =>

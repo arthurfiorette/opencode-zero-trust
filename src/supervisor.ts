@@ -1,9 +1,10 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { childEnvironment } from './environment.js';
+import { createInterface } from 'node:readline';
+import type { Readable } from 'node:stream';
+import { childDirectory, childEnvironment } from './environment.js';
 import type { HelperStatus, StartMessage } from './helper-protocol.js';
 import { startProxy } from './proxy.js';
 
@@ -20,19 +21,22 @@ function delay(milliseconds: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-async function metricsPort(): Promise<number> {
-  const server = createServer();
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      if (!address || typeof address === 'string') {
-        server.close();
-        reject(new Error('METRICS_BIND_FAILED'));
-        return;
-      }
-      server.close((error) => (error ? reject(error) : resolve(address.port)));
+const metricsAnnouncement = /Starting metrics server on 127\.0\.0\.1:(\d{1,5})\/metrics/;
+
+// cloudflared binds an ephemeral port itself, so only its own stderr can say where readiness is served.
+// Choosing a port here first would let another local process claim it and fake readiness.
+function announcedMetricsPort(stream: Readable, signal: AbortSignal): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const finish = () => resolve(undefined);
+    signal.addEventListener('abort', finish, { once: true });
+    stream.once('error', finish);
+    // Keep reading after the announcement so connector logs never fill the pipe.
+    const lines = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
+    lines.on('line', (line) => {
+      const port = Number(metricsAnnouncement.exec(line)?.[1]);
+      if (port > 0 && port < 65_536) resolve(port);
     });
+    lines.once('close', finish);
   });
 }
 
@@ -71,7 +75,6 @@ async function runConnector(
   report: (status: HelperStatus) => void,
   signal: AbortSignal
 ): Promise<{ started: boolean; lifetime: number }> {
-  const port = await metricsPort();
   if (signal.aborted) return { started: false, lifetime: 0 };
   const startedAt = Date.now();
   let child: ChildProcess;
@@ -85,15 +88,20 @@ async function runConnector(
         configFile,
         '--no-autoupdate',
         '--metrics',
-        `127.0.0.1:${port}`,
+        '127.0.0.1:0',
         '--grace-period',
         '2s',
         '--loglevel',
-        'error',
+        'info',
         'run',
         message.config.tunnel
       ],
-      { env: childEnvironment(), stdio: 'ignore', windowsHide: true }
+      {
+        cwd: childDirectory(),
+        env: childEnvironment(),
+        stdio: ['ignore', 'ignore', 'pipe'],
+        windowsHide: true
+      }
     );
   } catch {
     return { started: false, lifetime: 0 };
@@ -117,7 +125,12 @@ async function runConnector(
   if (signal.aborted) terminate();
   const pid = child.pid;
   if (pid) report({ state: 'connecting', pid });
-  const monitoring = pid ? monitorReadiness(port, pid, report, monitor.signal) : Promise.resolve();
+  const monitoring =
+    pid && child.stderr
+      ? announcedMetricsPort(child.stderr, monitor.signal).then((port) =>
+          port === undefined ? undefined : monitorReadiness(port, pid, report, monitor.signal)
+        )
+      : Promise.resolve();
   await exited;
   monitor.abort();
   if (killTimer) clearTimeout(killTimer);

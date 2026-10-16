@@ -95,12 +95,19 @@ test('connects to the authenticated hosting process without changing its registr
 });
 
 test('rejects another healthy daemon process', async (t) => {
-  const { file, requests } = await fixture(t, { pid: process.pid + 1 });
-  await assert.rejects(connectDaemon({ serviceFile: file }), {
-    name: 'DaemonError',
-    code: 'daemon-mismatch'
-  });
-  assert.equal(requests.length, 2);
+  const { file, registration } = await fixture(t, { pid: process.pid + 1 });
+  // The registration claims this process, but the server answering its port is another one.
+  await writeFile(file, JSON.stringify({ ...registration, pid: process.pid } satisfies Info));
+  await assert.rejects(connectDaemon({ serviceFile: file }), { name: 'DaemonError' });
+});
+
+test('never sends credentials to another process registration', async (t) => {
+  const { file, registration, requests } = await fixture(t, { pid: process.pid + 1 });
+  await assert.rejects(connectDaemon({ serviceFile: file }), { code: 'daemon-mismatch' });
+  const { pid: _pid, ...withoutPid } = registration;
+  await writeFile(file, JSON.stringify(withoutPid));
+  await assert.rejects(connectDaemon({ serviceFile: file }), { code: 'daemon-mismatch' });
+  assert.equal(requests.length, 0);
 });
 
 test('requires native basic authentication with a nonempty password', async (t) => {

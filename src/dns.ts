@@ -1,6 +1,6 @@
 import childProcess from 'node:child_process';
 import { Resolver } from 'node:dns/promises';
-import { childEnvironment } from './environment.js';
+import { childDirectory, childEnvironment } from './environment.js';
 
 export class DnsError extends Error {
   readonly code: 'dns-check-failed' | 'dns-route-failed';
@@ -59,6 +59,7 @@ export async function ensureDNS(options: {
           timeout: 20_000,
           maxBuffer: 64 * 1024,
           windowsHide: true,
+          cwd: childDirectory(),
           env: childEnvironment(),
           ...(options.signal ? { signal: options.signal } : {})
         },

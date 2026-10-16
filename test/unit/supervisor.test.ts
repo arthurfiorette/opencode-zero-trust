@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { type ChildProcess, fork } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { type TestContext, test } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -21,6 +21,7 @@ const parentFile = fileURLToPath(new URL('../fixtures/helper-parent.mjs', import
 interface Run {
   pid: number;
   at: number;
+  cwd: string;
   args: string[];
   configFile: string;
   config: StartMessage['config'];
@@ -269,15 +270,15 @@ test('readiness follows /ready and network recovery without exposing child outpu
     run.configFile,
     '--no-autoupdate',
     '--metrics',
-    run.args[5],
+    '127.0.0.1:0',
     '--grace-period',
     '2s',
     '--loglevel',
-    'error',
+    'info',
     'run',
     f.message.config.tunnel
   ]);
-  assert.match(run.args[5] ?? '', /^127\.0\.0\.1:\d+$/);
+  assert.equal(run.cwd, homedir());
   if (process.platform !== 'win32') {
     assert.equal(run.configMode, 0o600);
     assert.equal(run.directoryMode, 0o700);
@@ -308,6 +309,16 @@ test('readiness follows /ready and network recovery without exposing child outpu
   assert.equal(child.exitCode, 0);
   assert.equal(alive(run.pid), false);
   assert.equal(await exists(run.configFile), false);
+});
+
+test('readiness is trusted only from the port the connector announces', async (t) => {
+  const f = await fixture(t, { silentMetrics: true });
+  const { statuses } = launch(t, f.message);
+  const [run] = await until(f.runs, (values) => values.length > 0);
+  assert.ok(run);
+  await sleep(1500);
+  assert.ok(statuses.some((status) => status.state === 'connecting'));
+  assert.ok(!statuses.some((status) => status.state === 'ready'));
 });
 
 test('crashes restart with increasing backoff and disconnect cancels restart', async (t) => {

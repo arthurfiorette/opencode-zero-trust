@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
 import { Resolver } from 'node:dns/promises';
+import { homedir } from 'node:os';
 import { type TestContext, test } from 'node:test';
 import { DnsError, ensureDNS } from '../../src/dns.js';
 import { childEnvironment } from '../../src/environment.js';
@@ -68,6 +69,7 @@ test('conclusive negative answers create one route without overwrite flags', asy
     timeout: 20_000,
     maxBuffer: 64 * 1024,
     windowsHide: true,
+    cwd: homedir(),
     env: childEnvironment()
   });
 });

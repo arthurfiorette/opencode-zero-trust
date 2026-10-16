@@ -67,6 +67,10 @@ export async function connectDaemon(
       throw new DaemonError('daemon-unavailable');
     }
     const registeredUrl = loopbackUrl(registration.url);
+    // A stale registration's port may belong to another local user, who would receive the probe's auth.
+    if (!('pid' in registration) || registration.pid !== process.pid) {
+      throw new DaemonError('daemon-mismatch');
+    }
     const endpoint = await Service.discover({ file });
     if (!endpoint) throw new DaemonError('daemon-unavailable');
     const url = loopbackUrl(endpoint.url);

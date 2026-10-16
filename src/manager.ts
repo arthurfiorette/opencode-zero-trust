@@ -4,7 +4,7 @@ import type { TunnelOptions } from './config.js';
 import { CredentialsError, findCredentialsFile, readTunnelID } from './credentials.js';
 import { connectDaemon, DaemonError } from './daemon.js';
 import { DnsError, ensureDNS } from './dns.js';
-import { childEnvironment } from './environment.js';
+import { childDirectory, childEnvironment } from './environment.js';
 import { helperStatusSchema, type StartMessage } from './helper-protocol.js';
 import type { Pairing, Status } from './rpc.js';
 
@@ -200,6 +200,7 @@ export class TunnelManager {
     const helper = fork(new URL('./helper.js', import.meta.url), [], {
       execPath: this.options.nodePath,
       execArgv: [],
+      cwd: childDirectory(),
       env: childEnvironment(),
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       // Windows otherwise kills the helper with the daemon's child-process job before IPC cleanup can run.

@@ -26,9 +26,15 @@ const server = createServer((request, response) => {
 });
 
 server.listen(Number(port), host, () => {
+  if (!behavior.silentMetrics) {
+    console.error(
+      `2026-01-01T00:00:00Z INF Starting metrics server on ${host}:${server.address().port}/metrics`
+    );
+  }
   const record = {
     pid: process.pid,
     at: Date.now(),
+    cwd: process.cwd(),
     args,
     configFile,
     config,

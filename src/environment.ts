@@ -1,3 +1,10 @@
+import { homedir } from 'node:os';
+
+// Windows resolves bare command names in the working directory before PATH, so never inherit the daemon's.
+export function childDirectory(): string {
+  return homedir();
+}
+
 export function childEnvironment(): NodeJS.ProcessEnv {
   const allowed = new Set([
     'PATH',

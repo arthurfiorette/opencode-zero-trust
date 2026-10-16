@@ -196,7 +196,10 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
         }),
         { mode: 0o600 }
       );
-      await writeFile(serviceFile, JSON.stringify({ url: 'http://127.0.0.1:4096' }));
+      await writeFile(
+        serviceFile,
+        JSON.stringify({ url: 'http://127.0.0.1:4096', pid: process.pid })
+      );
       context.mock.method(Service, 'discover', async () => ({
         url: 'http://127.0.0.1:4096',
         auth: { type: 'basic', username: 'opencode', password: 'test-only' }

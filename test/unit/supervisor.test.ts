@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { type ChildProcess, fork } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { type TestContext, test } from 'node:test';
@@ -134,6 +135,27 @@ test('protocol rejects unsafe config and permits only sanitized error codes', as
   );
   const { message } = await fixture(t);
   assert.equal(startMessageSchema.safeParse(message).success, true);
+  assert.equal(startMessageSchema.safeParse({ ...message, preventTransform: true }).success, true);
+  assert.equal(
+    startMessageSchema.safeParse({ ...message, preventTransform: 'true' }).success,
+    false
+  );
+  const nativeOnly = structuredClone(message);
+  delete nativeOnly.config.ingress[0].originRequest;
+  assert.equal(startMessageSchema.safeParse(nativeOnly).success, true);
+  assert.equal(
+    startMessageSchema.safeParse({
+      ...nativeOnly,
+      config: {
+        ...nativeOnly.config,
+        ingress: [
+          { ...nativeOnly.config.ingress[0], originRequest: {} },
+          nativeOnly.config.ingress[1]
+        ]
+      }
+    }).success,
+    false
+  );
   const tls = structuredClone(message);
   tls.config.ingress[0].service = 'https://127.0.0.1:443';
   assert.equal(startMessageSchema.safeParse(tls).success, true);
@@ -170,6 +192,60 @@ test('protocol rejects unsafe config and permits only sanitized error codes', as
     false
   );
 });
+
+for (const preventTransform of [false, true]) {
+  test(`helper ${preventTransform ? 'owns and closes the header proxy' : 'keeps direct ingress by default'}`, async (t) => {
+    const origin = createHttpServer((_request, response) => {
+      response.writeHead(200, {
+        'content-type': 'text/html',
+        'cache-control': 'no-cache',
+        'content-security-policy': "default-src 'self'"
+      });
+      response.end('<!doctype html><p>unchanged bytes</p>');
+    });
+    await new Promise<void>((resolve) => origin.listen(0, '127.0.0.1', resolve));
+    const address = origin.address();
+    assert.ok(address && typeof address === 'object');
+    const url = `http://127.0.0.1:${address.port}`;
+    t.after(async () => {
+      origin.closeAllConnections();
+      await new Promise<void>((resolve) => origin.close(() => resolve()));
+    });
+    const f = await fixture(t);
+    f.message.config.ingress[0].service = url;
+    if (preventTransform) f.message.preventTransform = true;
+    const { child, statuses } = launch(t, f.message);
+    await until(
+      () => statuses,
+      (values) => values.some((status) => status.state === 'ready')
+    );
+    const [run] = await f.runs();
+    assert.ok(run);
+    const target = run.config.ingress[0].service;
+    assert.deepEqual(
+      run.config.ingress[0].originRequest,
+      f.message.config.ingress[0].originRequest
+    );
+    assert.deepEqual(run.config.ingress[1], { service: 'http_status:404' });
+    if (preventTransform) assert.notEqual(target, url);
+    else assert.equal(target, url);
+    const response = await fetch(target);
+    assert.equal(await response.text(), '<!doctype html><p>unchanged bytes</p>');
+    assert.equal(
+      response.headers.get('cache-control'),
+      preventTransform ? 'no-cache, no-transform' : 'no-cache'
+    );
+    assert.equal(response.headers.get('content-security-policy'), "default-src 'self'");
+    child.send({ type: 'stop' });
+    await until(
+      () => child.exitCode,
+      (code) => code !== null
+    );
+    assert.equal(child.exitCode, 0);
+    assert.equal(await exists(run.configFile), false);
+    if (preventTransform) await assert.rejects(fetch(target));
+  });
+}
 
 test('readiness follows /ready and network recovery without exposing child output or environment', async (t) => {
   const f = await fixture(t);
@@ -276,6 +352,7 @@ test('IPC disconnect forcibly terminates a connector that ignores SIGTERM and re
 
 test('abrupt parent death closes IPC and cleans up the helper-owned connector', async (t) => {
   const f = await fixture(t, { ignoreTerm: true });
+  f.message.preventTransform = true;
   const messageFile = join(f.directory, 'message.json');
   await writeFile(messageFile, JSON.stringify(f.message));
   const parent = fork(parentFile, [helperFile, messageFile], {
@@ -287,6 +364,7 @@ test('abrupt parent death closes IPC and cleans up the helper-owned connector', 
   t.after(() => parent.kill('SIGKILL'));
   const [run] = await until(f.runs, (values) => values.length > 0);
   assert.ok(run);
+  assert.notEqual(run.config.ingress[0].service, f.message.config.ingress[0].service);
   parent.kill('SIGKILL');
   await exited(parent);
   try {
@@ -321,6 +399,7 @@ test('abrupt parent death closes IPC and cleans up the helper-owned connector', 
     );
   }
   assert.equal(alive(run.pid), false);
+  await assert.rejects(fetch(run.config.ingress[0].service));
 });
 
 test('invalid start and missing executable report fixed codes without raw errors', async (t) => {

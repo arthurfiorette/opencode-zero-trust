@@ -7,6 +7,8 @@ export const stateSchema = z.enum([
   'connecting',
   'ready',
   'restarting',
+  'stopping',
+  'stopped',
   'error'
 ]);
 
@@ -15,8 +17,11 @@ export const errorSchema = z.enum([
   'daemon-mismatch',
   'daemon-auth-required',
   'daemon-not-loopback',
+  'dns-check-failed',
+  'dns-route-failed',
   'credentials-invalid',
   'credentials-permissions',
+  'credentials-ambiguous',
   'node-unavailable',
   'cloudflared-unavailable',
   'cloudflared-exited',
@@ -27,6 +32,7 @@ export const errorSchema = z.enum([
 
 export const statusSchema = z.strictObject({
   state: stateSchema,
+  dns: z.enum(['unchecked', 'resolved', 'created']).optional(),
   hostname: z.string().optional(),
   url: z.url().optional(),
   helperPid: z.number().int().positive().optional(),
@@ -48,6 +54,20 @@ export const ZeroTrust = Rpc.define({
     status: {
       input: z.strictObject({}),
       output: statusSchema
+    },
+    connect: {
+      input: z.strictObject({}),
+      output: statusSchema,
+      errors: {
+        unavailable: z.strictObject({})
+      }
+    },
+    disable: {
+      input: z.strictObject({}),
+      output: statusSchema,
+      errors: {
+        unavailable: z.strictObject({})
+      }
     },
     pair: {
       input: z.strictObject({}),

@@ -9,9 +9,15 @@ test('loads in a real OpenCode host and serves Location-scoped status RPCs', {
   assert.match(result.stdout, /OpenCode integration passed/);
 });
 
-test('configured SDK host owns one connector across reloads and issues native pairing', {
-  timeout: 90_000
-}, async () => {
-  const result = await runHostFixture('configured-host.mjs', ['--experimental-test-module-mocks']);
-  assert.match(result.stdout, /Configured OpenCode integration passed/);
-});
+for (const access of [true, false]) {
+  test(`configured SDK host supports native pairing ${access ? 'with' : 'without'} Cloudflare Access`, {
+    timeout: 90_000
+  }, async () => {
+    const result = await runHostFixture(
+      'configured-host.mjs',
+      ['--experimental-test-module-mocks'],
+      access ? [] : ['--without-access']
+    );
+    assert.match(result.stdout, /Configured OpenCode integration passed/);
+  });
+}

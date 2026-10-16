@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { childEnvironment } from './environment.js';
 import type { HelperStatus, StartMessage } from './helper-protocol.js';
+import { startProxy } from './proxy.js';
 
 function delay(milliseconds: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -131,11 +132,19 @@ export async function supervise(
   signal: AbortSignal
 ): Promise<void> {
   let directory: string | undefined;
+  let proxy: Awaited<ReturnType<typeof startProxy>> | undefined;
   try {
+    if (signal.aborted) return;
+    const config = structuredClone(message.config);
+    if (message.preventTransform) {
+      proxy = await startProxy(config.ingress[0].service);
+      config.ingress[0].service = proxy.url;
+    }
+    if (signal.aborted) return;
     directory = await mkdtemp(join(tmpdir(), 'opencode-zero-trust-'));
     await chmod(directory, 0o700);
     const configFile = join(directory, 'config.json');
-    await writeFile(configFile, JSON.stringify(message.config), { mode: 0o600 });
+    await writeFile(configFile, JSON.stringify(config), { mode: 0o600 });
     let backoff = 500;
     while (!signal.aborted) {
       const result = await runConnector(message, configFile, report, signal);
@@ -151,6 +160,7 @@ export async function supervise(
   } catch {
     if (!signal.aborted) report({ state: 'error', error: 'helper-unavailable' });
   } finally {
+    await proxy?.close();
     if (directory) {
       try {
         await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });

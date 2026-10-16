@@ -26,6 +26,9 @@ try {
     await host.sessions.create({ location });
     const status: Status = await host.rpc(ZeroTrust).status({}, { location });
     assert.deepEqual(status, { state: 'unconfigured' });
+    assert.deepEqual(await host.rpc(ZeroTrust).disable({}, { location }), {
+      state: 'unconfigured'
+    });
     await assert.rejects(host.rpc(ZeroTrust).pair({}, { location }), (error: unknown) => {
       assert.ok(error && typeof error === 'object' && 'type' in error);
       assert.equal(error.type, 'not_ready');

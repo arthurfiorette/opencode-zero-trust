@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Plugin } from '@opencode/plugin/tui';
-import type { DialogAlertOptions, DialogOptions, KeymapLayer } from '@opencode/plugin/tui/context';
-import { encode } from 'uqr';
+import type {
+  DialogAlertOptions,
+  DialogOptions,
+  KeymapLayer,
+  ToastOptions
+} from '@opencode/plugin/tui/context';
 import { type Pairing, type Status, ZeroTrust } from '../../src/rpc.js';
 import plugin from '../../src/tui.js';
 
@@ -28,12 +32,18 @@ async function host(
     pairing?: Pairing;
     width?: number;
     height?: number;
+    confirmed?: boolean;
+    disableError?: unknown;
+    connectError?: unknown;
   } = {}
 ) {
   const layers: KeymapLayer[] = [];
   const dialogs: DialogAlertOptions[] = [];
   const sizes: DialogOptions[] = [];
   const requests: unknown[] = [];
+  const toasts: ToastOptions[] = [];
+  let qrPanels = 0;
+  let confirmations = 0;
   const context = {
     location: options.explicit ? location : undefined,
     renderer: { width: options.width ?? 140, height: options.height ?? 80 },
@@ -63,18 +73,43 @@ async function host(
             requests.push({ method: 'pair', input, options: callOptions });
             if ('pairError' in options) throw options.pairError;
             return options.pairing ?? pairing;
+          },
+          async disable(input: unknown, callOptions: unknown) {
+            requests.push({ method: 'disable', input, options: callOptions });
+            if ('disableError' in options) throw options.disableError;
+            return { state: 'stopped' };
+          },
+          async connect(input: unknown, callOptions: unknown) {
+            requests.push({ method: 'connect', input, options: callOptions });
+            if ('connectError' in options) throw options.connectError;
+            return { state: 'starting' };
           }
         };
       }
     },
     ui: {
+      toast: {
+        show(value: ToastOptions) {
+          toasts.push(value);
+        }
+      },
+      slot() {
+        return () => {};
+      },
       dialog: {
+        show() {
+          qrPanels++;
+        },
+        async confirm() {
+          confirmations++;
+          return options.confirmed ?? true;
+        },
         async alert(value: DialogAlertOptions) {
           dialogs.push(value);
           sizes.length = 0;
         },
         set(value: DialogOptions) {
-          assert.equal(dialogs.length, 1, 'Size must be set after the alert resets presentation.');
+          assert.equal(dialogs.length + qrPanels, 1, 'Size must be set after opening the dialog.');
           sizes.push(value);
         }
       }
@@ -91,10 +126,12 @@ async function host(
     requests,
     dialogs,
     sizes,
+    toasts,
+    qrPanels: () => qrPanels,
+    confirmations: () => confirmations,
     async run() {
       await command.run();
       assert.equal(dialogs.length, 1);
-      assert.deepEqual(sizes, [{ size: 'xlarge', centered: true }]);
       return dialogs[0]!.message;
     }
   };
@@ -105,8 +142,9 @@ for (const explicit of [true, false]) {
     const terminal = await host({ explicit, status: ready });
     assert.equal(terminal.command.palette, true);
     assert.equal(terminal.command.title, 'Show Zero Trust status');
-    assert.deepEqual(terminal.command.slash, { name: 'zero-trust' });
-    await terminal.run();
+    assert.deepEqual(terminal.command.slash, { name: 'zero-trust', arguments: true });
+    await terminal.command.run();
+    assert.equal(terminal.qrPanels(), 1);
     assert.deepEqual(terminal.requests, [
       { method: 'status', input: {}, options: { location } },
       { method: 'pair', input: {}, options: { location } }
@@ -114,11 +152,70 @@ for (const explicit of [true, false]) {
   });
 }
 
-for (const state of ['unconfigured', 'starting', 'connecting', 'restarting', 'error'] as const) {
+test('/zero-trust disable confirms and stops without issuing pairing', async () => {
+  const terminal = await host({ explicit: true, status: ready });
+  await terminal.command.run('disable');
+  assert.equal(terminal.confirmations(), 1);
+  assert.deepEqual(terminal.requests, [{ method: 'disable', input: {}, options: { location } }]);
+  assert.match(terminal.toasts[0]?.message ?? '', /disconnected/);
+});
+
+test('/zero-trust status displays diagnostics without issuing pairing', async () => {
+  const terminal = await host({ status: ready });
+  await terminal.command.run('status');
+  assert.equal(terminal.requests.length, 1);
+  assert.match(terminal.dialogs[0]?.message ?? '', /Connector: ready/);
+  assert.deepEqual(terminal.sizes, [{ size: 'xlarge', centered: true }]);
+  assert.ok(!JSON.stringify(terminal.dialogs).includes('single-use-code'));
+});
+
+test('/zero-trust connect starts explicitly without requesting pairing', async () => {
+  const terminal = await host({ explicit: true });
+  await terminal.command.run('connect');
+  assert.deepEqual(terminal.requests, [{ method: 'connect', input: {}, options: { location } }]);
+  assert.match(terminal.toasts[0]?.message ?? '', /Connecting/);
+});
+
+test('connect reports configuration conflicts directly instead of looping back to status', async () => {
+  const terminal = await host({
+    status: { state: 'error', error: 'configuration-conflict' },
+    connectError: { type: 'unavailable', message: 'private transport detail' }
+  });
+  await terminal.command.run('connect');
+  assert.equal(terminal.toasts[0]?.variant, 'error');
+  assert.match(terminal.toasts[0]?.message ?? '', /different options/);
+  assert.match(terminal.toasts[0]?.message ?? '', /opencode service restart/);
+  assert.ok(!JSON.stringify(terminal.toasts).includes('private transport detail'));
+});
+
+test('cancelled disable leaves the connector untouched', async () => {
+  const terminal = await host({ confirmed: false });
+  await terminal.command.run('disable');
+  assert.deepEqual(terminal.requests, []);
+  assert.equal(terminal.toasts.length, 0);
+});
+
+test('disable failures do not claim shutdown or expose raw errors', async () => {
+  const terminal = await host({ disableError: new Error('private-token') });
+  await terminal.command.run('disable');
+  assert.equal(terminal.toasts[0]?.variant, 'error');
+  assert.match(terminal.toasts[0]?.message ?? '', /Could not confirm/);
+  assert.ok(!JSON.stringify(terminal.toasts).includes('private-token'));
+});
+
+for (const state of [
+  'unconfigured',
+  'starting',
+  'connecting',
+  'restarting',
+  'stopping',
+  'stopped',
+  'error'
+] as const) {
   test(`shows ${state} without requesting a pairing code`, async () => {
     const terminal = await host({ status: { ...ready, state } });
     const message = await terminal.run();
-    assert.match(message, new RegExp(`Status: ${state}`));
+    assert.match(message, new RegExp(`Connector: ${state}`));
     assert.match(message, /Hostname: opencode-mac.example.com/);
     assert.match(message, /Public URL: https:\/\/opencode-mac.example.com/);
     assert.match(message, /Helper PID: 1234/);
@@ -131,65 +228,34 @@ for (const state of ['unconfigured', 'starting', 'connecting', 'restarting', 'er
 test('shows configuration guidance without invented PIDs or a URL', async () => {
   const terminal = await host();
   const message = await terminal.run();
-  assert.match(message, /Configure the tunnel credentials, hostname, and Access application/);
+  assert.match(message, /Configure the tunnel credentials and hostname/);
   assert.doesNotMatch(message, /PID|Public URL/);
 });
 
-test('ready status renders a camera-openable pairing URL, its QR matrix, and validity', async () => {
+test('ready command opens only a QR panel without diagnostic or URL text', async () => {
   const terminal = await host({ status: ready });
-  const message = await terminal.run();
-  assert.match(message, /Single-use pairing link \(valid for 120 seconds\):/);
-  assert.ok(message.includes(pairing.url));
-  const rows = message.split('\n').filter((line) => /^[▀▄█ ]+$/.test(line));
-  const qr = encode(pairing.url, { border: 4, ecc: 'M' });
-  assert.equal(rows.length, Math.ceil(qr.size / 2));
-  assert.ok(
-    rows.every((row) => row.length === qr.size),
-    'QR lines must retain their quiet zone.'
-  );
-  // Decode compact glyphs back into modules rather than comparing two renderer calls.
-  const pixels = rows
-    .flatMap((row) => {
-      const cells = [...row].map((cell) => {
-        switch (cell) {
-          case '█':
-            return [false, false];
-          case '▀':
-            return [false, true];
-          case '▄':
-            return [true, false];
-          case ' ':
-            return [true, true];
-          default:
-            throw new Error('Unexpected QR glyph');
-        }
-      });
-      return [cells.map((cell) => cell[0]), cells.map((cell) => cell[1])];
-    })
-    .slice(0, qr.size);
-  assert.deepEqual(
-    pixels,
-    qr.data,
-    'The QR must encode the URL itself, not JSON or a permanent password.'
-  );
+  await terminal.command.run();
+  assert.equal(terminal.qrPanels(), 1);
+  assert.deepEqual(terminal.dialogs, []);
+  assert.deepEqual(terminal.sizes, [{ size: 'medium', centered: true }]);
 });
 
 for (const dimensions of [{ width: 35 }, { height: 20 }]) {
-  test(`uses link-only pairing when terminal space is insufficient: ${JSON.stringify(dimensions)}`, async () => {
+  test(`asks for more space rather than clipping QR: ${JSON.stringify(dimensions)}`, async () => {
     const terminal = await host({ status: ready, ...dimensions });
     const message = await terminal.run();
-    assert.ok(message.includes(pairing.url));
-    assert.match(message, /Not enough terminal space/);
+    assert.ok(!message.includes(pairing.url));
+    assert.match(message, /Enlarge the terminal/);
     assert.doesNotMatch(message, /[▀▄█]/);
   });
 }
 
-test('an oversized pairing URL still offers a link instead of a broken QR', async () => {
+test('an oversized pairing URL reports a safe rendering error', async () => {
   const url = `https://example.com/?code=${'x'.repeat(4000)}`;
   const terminal = await host({ status: ready, pairing: { url, expiresIn: 60 } });
   const message = await terminal.run();
-  assert.ok(message.includes(url));
-  assert.match(message, /QR code unavailable/);
+  assert.ok(!message.includes(url));
+  assert.match(message, /Could not generate/);
 });
 
 test('a readiness race displays the new state without stale ready status or PIDs', async () => {
@@ -198,9 +264,9 @@ test('a readiness race displays the new state without stale ready status or PIDs
     pairError: { type: 'not_ready', message: 'private detail', data: { state: 'restarting' } }
   });
   const message = await terminal.run();
-  assert.match(message, /Status: restarting/);
+  assert.match(message, /Connector: restarting/);
   assert.match(message, /Run \/zero-trust again when it is ready/);
-  assert.doesNotMatch(message, /Status: ready|private detail|PID|single-use-code/);
+  assert.doesNotMatch(message, /Connector: ready|private detail|PID|single-use-code/);
 });
 
 for (const error of [
@@ -230,7 +296,7 @@ for (const error of ZeroTrust.methods.status.output.shape.error.unwrap().options
     const terminal = await host({ status: { state: 'error', error } });
     const message = await terminal.run();
     assert.equal(message.split('\n').length, 2);
-    assert.match(message, /Status: error/);
+    assert.match(message, /Connector: error/);
     assert.doesNotMatch(message, /undefined|not implemented/);
     assert.equal(terminal.requests.length, 1);
   });

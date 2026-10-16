@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-export async function runHostFixture(name: string, flags: string[] = []) {
+export async function runHostFixture(name: string, flags: string[] = [], args: string[] = []) {
   const directory = await mkdtemp(path.join(tmpdir(), 'opencode-zero-trust-integration-'));
   try {
     return await promisify(execFile)(
@@ -14,7 +14,8 @@ export async function runHostFixture(name: string, flags: string[] = []) {
         ...flags,
         '--import',
         import.meta.resolve('tsx'),
-        fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url))
+        fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)),
+        ...args
       ],
       {
         cwd: directory,

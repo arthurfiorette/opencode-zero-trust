@@ -27,9 +27,11 @@ const run = (args, cwd) =>
 
 try {
   assert.ok(process.platform !== 'win32' || npmCli, 'Cannot locate npm-cli.js on PATH.');
-  const [packed] = JSON.parse(
+  const result = JSON.parse(
     run(['pack', '--ignore-scripts', '--json', '--pack-destination', directory], root)
   );
+  // npm 12 keys pack results by package name; older npm versions return an array.
+  const [packed] = Array.isArray(result) ? result : Object.values(result);
   assert.ok(packed);
 
   for (const name of ['index', 'tui', 'rpc', 'helper']) {

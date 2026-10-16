@@ -25,6 +25,23 @@ export default Plugin.define({
 
     await context.rpc.register(ZeroTrust, {
       status: async () => status(),
+      connect: async (_input, invocation) => {
+        if (!manager || manager === 'conflict') {
+          return invocation.error('unavailable', 'Could not start the tunnel helper.', {});
+        }
+        return manager
+          .connect()
+          .catch(() => invocation.error('unavailable', 'Could not start the tunnel helper.', {}));
+      },
+      disable: async (_input, invocation) => {
+        if (manager === 'conflict') {
+          return invocation.error('unavailable', 'Could not stop the tunnel helper.', {});
+        }
+        if (!manager) return status();
+        return manager
+          .disable()
+          .catch(() => invocation.error('unavailable', 'Could not stop the tunnel helper.', {}));
+      },
       pair: async (_input, invocation) => {
         if (!manager || manager === 'conflict' || status().state !== 'ready') {
           return invocation.error('not_ready', 'The tunnel is not ready.', {

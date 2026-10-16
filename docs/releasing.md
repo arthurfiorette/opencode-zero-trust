@@ -1,6 +1,6 @@
 # Publish a release
 
-This guide is for maintainers after the implementation is ready for users. A release still requires platform lifecycle checks and live DNS, Access, pairing, SSE, and WebSocket verification.
+This guide covers stable releases through GitHub Actions and npm trusted publishing. Run the complete platform matrix before publishing; record live Cloudflare validation separately from fake-connector tests.
 
 ## Configure trusted publishing
 
@@ -9,8 +9,6 @@ This guide is for maintainers after the implementation is ready for users. A rel
 3. A new package may need a manual first publish before its trusted publisher can be configured. Complete that bootstrap using your npm account and required authentication, then use the workflow for subsequent releases. Do not store a long-lived npm token in the repository.
 
 Complete a successful publish within two days of creating the trusted publisher, or npm expires the unvalidated configuration. Create it when the release is ready. See [npm's trusted publishing guide](https://docs.npmjs.com/trusted-publishers/).
-
-The registry returned 404 for `opencode-zero-trust` on October 15, 2026, and `npm-name-cli` reported it available. Those checks did not reserve the name or guarantee npm will accept it.
 
 ## Prepare and publish
 

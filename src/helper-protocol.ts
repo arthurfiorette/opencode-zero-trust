@@ -19,6 +19,7 @@ export const startMessageSchema = z.strictObject({
   type: z.literal('start'),
   executable: z.string().min(1),
   prefixArgs: z.array(z.string()),
+  preventTransform: z.boolean().optional(),
   config: z.strictObject({
     tunnel: z.uuid(),
     'credentials-file': z.string().refine(isAbsolute),
@@ -26,13 +27,15 @@ export const startMessageSchema = z.strictObject({
       z.strictObject({
         hostname: z.hostname(),
         service: loopbackService,
-        originRequest: z.strictObject({
-          access: z.strictObject({
-            required: z.literal(true),
-            teamName: z.string().min(1),
-            audTag: z.array(z.string().min(1)).min(1)
+        originRequest: z
+          .strictObject({
+            access: z.strictObject({
+              required: z.literal(true),
+              teamName: z.string().min(1),
+              audTag: z.array(z.string().min(1)).min(1)
+            })
           })
-        })
+          .optional()
       }),
       z.strictObject({ service: z.literal('http_status:404') })
     ])

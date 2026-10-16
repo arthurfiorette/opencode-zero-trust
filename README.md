@@ -1,5 +1,9 @@
 <p align="center">
-  Using this package? Consider <a href="https://github.com/sponsors/arthurfiorette">sponsoring</a> my open source work.
+   <b>Using this package?</b> Please consider <a href="https://github.com/sponsors/arthurfiorette" target="_blank">donating</a> to support my open source work ❤️
+  <br />
+  <sup>
+   Help opencode-zero-trust grow! Star and share this amazing repository with your friends and co-workers!
+  </sup>
 </p>
 
 <br />

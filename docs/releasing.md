@@ -12,7 +12,7 @@ Complete a successful publish within two days of creating the trusted publisher,
 
 ## Prepare and publish
 
-1. Finish the tunnel lifecycle and authentication checks in [PLAN.md](../PLAN.md), including Windows, Linux, and macOS validation.
+1. Finish the tunnel lifecycle and authentication checks, including Windows, Linux, and macOS validation.
 2. Update the package version and lockfile. Document the release's behavior and any migration requirements.
 3. Run `pnpm install --frozen-lockfile` and `pnpm check` with the declared Node and pnpm versions.
 4. Commit and push. Wait for all CI jobs to pass.

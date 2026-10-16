@@ -2,6 +2,14 @@
   Using this package? Consider <a href="https://github.com/sponsors/arthurfiorette">sponsoring</a> my open source work.
 </p>
 
+<br />
+
+<p align="center" title="OpenCode Zero Trust screenshot">
+  <a href="https://github.com/arthurfiorette/opencode-zero-trust">
+    <img src="https://raw.githubusercontent.com/arthurfiorette/opencode-zero-trust/main/docs/logo.png" width="700" alt="OpenCode TUI showing a pairing QR code and the Zero Trust sidebar section" />
+  </a>
+</p>
+
 # OpenCode Zero Trust
 
 Reach your local OpenCode daemon from other devices through a Cloudflare Named Tunnel, and pair them by scanning a QR code.
@@ -148,7 +156,7 @@ When `credentialsFile` is omitted and `~/.cloudflared` contains more than one `<
 | `{hostname}` | `os.hostname()`                |
 | `{os}`       | `macos`, `windows`, or `linux` |
 
-For example, `oc-{hostname}.example.com` or `oc-{username}-{os}.example.com`. Prefer `{hostname}`, since usernames often repeat across computers.
+For example, `opencode-{os}.example.com`. The hostname is published in public DNS, so avoid variables that reveal personal names, such as `{username}` or a `{hostname}` like `arthurs-macbook-pro`. Each computer needs its own hostname; if two share an operating system, give one a fixed name.
 
 Values are converted to lowercase DNS labels: accents are removed, punctuation becomes hyphens, and leading or trailing hyphens are dropped. Add a length after a comma to truncate: `{hostname,5}` keeps the first five characters and `{hostname,-5}` the last five, with lengths from 1 to 63. Truncated names can collide across machines.
 

@@ -34,13 +34,13 @@ Follow [AGENTS.md](../AGENTS.md) for contribution constraints and the [release g
 
 The server plugin shares one process-global tunnel manager across configured Locations and plugin reloads. It starts on the first configured Location activation unless `autoStart` is false, in which case only an explicit connect operation starts initialization. Empty options remain inert. Closing a TUI or unloading a Location does not stop the tunnel. Conflicting configurations are rejected; changing configuration requires a daemon restart.
 
-The manager starts a Node.js helper that supervises `cloudflared`. IPC ties helper lifetime to the daemon, including when the helper is detached on Windows. Normal shutdown or abrupt daemon death disconnects IPC, causing the helper to terminate its connector. A forcibly killed helper may leave the connector alive. The manager reports failure without automatically replacing that helper, avoiding duplicate connectors; check for a surviving connector before restarting.
+The manager starts a Node.js helper that supervises `cloudflared`. IPC ties helper lifetime to the daemon, including when the helper is detached on Windows. Normal shutdown or abrupt daemon death disconnects IPC, causing the helper to terminate its connector. Readiness comes from `/ready` on the ephemeral loopback metrics port that `cloudflared` binds and announces on its own stderr; the helper never pre-selects a port another local process could claim, and discards all other connector output. A forcibly killed helper may leave the connector alive. The manager reports failure without automatically replacing that helper, avoiding duplicate connectors; check for a surviving connector before restarting.
 
 Explicit disconnect/`disable` aborts startup/DNS work and closes the manager's owned IPC connection, awaiting helper shutdown before reporting `stopped`. Location reloads reuse that stopped manager. Explicit connect may initialize a new helper after a confirmed stop; uncertain cleanup or unexpected helper death must never launch a replacement. The command never deletes credentials, Cloudflare resources, or already-created DNS records.
 
 ### Daemon discovery
 
-Only the existing default managed service is discovered automatically, through public `Service.discover`. Discovery requires native authentication, a loopback endpoint, and `server.info().pid === process.pid`. It never ensures or starts another daemon. Other channels or hosts require an absolute `serviceFile`; private servers without registration are unsupported.
+Only the existing default managed service is discovered automatically, through public `Service.discover`. Discovery requires native authentication, a loopback endpoint, and `server.info().pid === process.pid`. The registration's `pid` must also match before discovery sends any credentials, so a stale registration cannot leak them to whoever now holds its port. It never ensures or starts another daemon. Other channels or hosts require an absolute `serviceFile`; private servers without registration are unsupported.
 
 ### Credentials and authentication
 
@@ -50,7 +50,7 @@ After authenticating and verifying the hosting daemon, `autoDns` checks A, AAAA,
 
 Generated ingress routes only the exact configured hostname to the verified loopback daemon, with a 404 fallback. Optional `access` configuration enables connector-side JWT validation using `originRequest.access.required: true`, the team name, and the audience tag. Both Access fields are mandatory when provided. Omission disables that connector check, not an existing Cloudflare Access application. Native OpenCode authentication is always required.
 
-The helper receives no daemon password, and child environments exclude unrelated secrets. `/zero-trust` requests a native five-minute, single-use pairing link only when the connector is ready. The link is neither persisted nor logged and contains no permanent password. Connector readiness is distinct from public end-to-end verification.
+The helper receives no daemon password, and child environments exclude unrelated secrets. Child processes run from the home directory because Windows searches the working directory before `PATH` for bare command names. `/zero-trust` requests a native five-minute, single-use pairing link only when the connector is ready. The link is neither persisted nor logged and contains no permanent password. Connector readiness is distinct from public end-to-end verification.
 
 A separate hosted UI needs its own CORS and per-server authentication configuration. Access authentication on the UI domain does not authorize requests to daemon domains.
 

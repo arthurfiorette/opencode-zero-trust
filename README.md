@@ -96,7 +96,7 @@ To also make the connector reject requests without a valid Access JWT, add `acce
 
 `teamName` is the `your-team` part of `https://your-team.cloudflareaccess.com`, and `audience` is the application's [64-hex AUD tag](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/#get-your-aud-tag). Both are required. Leaving `access` out disables only this check; the Access application still applies.
 
-## Mobile app
+## PWA
 
 Open the hostname on your phone and install it: **Share > Add to Home Screen** in Safari, or **Install app** in Android browsers. The daemon serves OpenCode's PWA from its bundled frontend, so the app always matches your installed OpenCode version.
 

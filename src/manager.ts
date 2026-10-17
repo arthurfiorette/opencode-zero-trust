@@ -268,9 +268,9 @@ export class TunnelManager {
     };
     helper.send(message, (error) => {
       if (error) this.fail('helper-unavailable', generation);
-      helper.channel?.unref();
+      helper.channel?.unref?.();
     });
     helper.unref();
-    helper.channel?.unref();
+    helper.channel?.unref?.();
   }
 }

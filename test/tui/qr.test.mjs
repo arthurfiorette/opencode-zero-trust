@@ -1,6 +1,6 @@
-import { test } from 'bun:test';
+import { spyOn, test } from 'bun:test';
 import assert from 'node:assert/strict';
-import { RGBA } from '@opentui/core';
+import { RGBA, TextBuffer } from '@opentui/core';
 import { testRender } from '@opentui/solid';
 import { jsx } from '@opentui/solid/jsx-runtime';
 import { createSignal } from 'solid-js';
@@ -60,8 +60,7 @@ test('QR-only dialog mounts cold, encodes the URL, and discards an expired QR', 
   );
   try {
     await showQrDialog(context, pairing, Date.now());
-    // The initial mount still exercises the loading placeholder before this import settles.
-    await import('../../dist/qr-panel.js');
+    // showQrDialog must load the panel cold before mounting its renderables.
     await rendered.waitForFrame((frame) => frame.includes('█'));
     const frame = rendered.captureCharFrame();
     for (const unwanted of [
@@ -131,3 +130,81 @@ test('QR-only dialog mounts cold, encodes the URL, and discards an expired QR', 
     rendered.renderer.destroy();
   }
 });
+
+for (const outcome of ['copied', 'expired', 'cancelled', 'clipboard-failed']) {
+  test(`QR render failure recovers through the host dialog: ${outcome}`, async () => {
+    const [view, setView] = createSignal();
+    const copied = [];
+    const toasts = [];
+    const selections = [];
+    let cleared = 0;
+    const pairing = {
+      url: `https://oc.example.com/auth/connect/${'b'.repeat(22)}`,
+      expiresIn: 300
+    };
+    const context = {
+      renderer: {
+        width: 100,
+        height: 60,
+        copyToClipboardOSC52(url) {
+          if (outcome === 'clipboard-failed') return false;
+          copied.push(url);
+          return true;
+        }
+      },
+      theme: {
+        text: { base: '#dcc89b', muted: '#aaaaaa' },
+        background: { raised: { base: '#202321' } }
+      },
+      keymap: { layer() {} },
+      ui: {
+        toast: { show: (toast) => toasts.push(toast) },
+        dialog: {
+          show: (render) => setView(() => render),
+          set() {},
+          clear() {
+            cleared++;
+            setView(undefined);
+          },
+          async select(options) {
+            selections.push(options);
+            return outcome === 'cancelled' ? undefined : 'copy';
+          }
+        }
+      }
+    };
+    const rendered = await testRender(
+      () =>
+        jsx('box', {
+          width: '100%',
+          height: '100%',
+          get children() {
+            return view()?.();
+          }
+        }),
+      { width: 100, height: 60 }
+    );
+    // Exercise the real panel and Solid error boundary, not a substitute panel.
+    const buffer = spyOn(TextBuffer, 'create').mockImplementationOnce(() => {
+      throw new Error('Failed to create TextBuffer');
+    });
+    try {
+      await showQrDialog(context, pairing, Date.now() - (outcome === 'expired' ? 301_000 : 0));
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(buffer.mock.calls.length, 1);
+      assert.equal(cleared, 1);
+      assert.equal(selections.length, 1);
+      assert.equal(selections[0].options[0].value, 'copy');
+      assert.deepEqual(copied, outcome === 'copied' ? [pairing.url] : []);
+      if (outcome === 'cancelled') assert.equal(toasts.length, 0);
+      else {
+        assert.equal(toasts.length, 1);
+        assert.equal(toasts[0].variant, outcome === 'copied' ? 'success' : 'error');
+      }
+      assert.ok(!JSON.stringify({ toasts, selections }).includes(pairing.url));
+    } finally {
+      buffer.mockRestore();
+      rendered.renderer.destroy();
+    }
+  });
+}

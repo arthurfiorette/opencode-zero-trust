@@ -182,6 +182,7 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
     const credentialsFile = path.join(directory, 'credentials.json');
     const serviceFile = path.join(directory, 'service.json');
     const helpers: (EventEmitter & { connected: boolean })[] = [];
+    let channelUnrefs = 0;
     let launched: () => void = () => {};
     const launch = new Promise<void>((resolve) => {
       launched = resolve;
@@ -216,6 +217,14 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
         const helper = Object.assign(new EventEmitter(), {
           pid: process.pid + 1,
           connected: true,
+          channel:
+            shutdown === 'confirmed'
+              ? {
+                  unref() {
+                    channelUnrefs++;
+                  }
+                }
+              : {},
           disconnect() {
             this.connected = false;
           },
@@ -240,6 +249,7 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
       );
       assert.equal((await manager.connect()).state, 'starting');
       await launch;
+      assert.equal(channelUnrefs, shutdown === 'confirmed' ? 2 : 0);
       const helper = helpers[0];
       assert.ok(helper);
       helper.emit('message', { state: 'ready', pid: process.pid + 2 });

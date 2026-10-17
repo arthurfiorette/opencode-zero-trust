@@ -65,6 +65,8 @@ Each QR code holds a single-use pairing link that expires after five minutes. It
 
 Short hostnames produce smaller QR codes. If the code does not fit the terminal, the panel asks you to enlarge it.
 
+If the QR panel cannot load or render, a native dialog offers **Copy pairing link** instead. The same single-use and expiry rules apply. If the terminal clipboard is unavailable, run `opencode pair --url https://YOUR-HOSTNAME` in another terminal and open the generated link on your device.
+
 ## Tunnel lifecycle
 
 The tunnel starts the first time a project with the plugin configured opens, and keeps running after you close the TUI. Set `"autoStart": false` to start offline and connect manually. With no options, the plugin starts nothing.

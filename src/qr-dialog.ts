@@ -1,9 +1,37 @@
 import type { Plugin } from '@opencode/plugin/tui';
-import { createComponent, createMemo, lazy } from 'solid-js';
+import { createComponent, ErrorBoundary } from 'solid-js';
 import { renderUnicodeCompact } from 'uqr';
 import type { Pairing } from './rpc.js';
 
-const Panel = lazy(() => import('./qr-panel.js'));
+async function copyPairingLink(
+  context: Plugin.Context,
+  pairing: Pairing,
+  expiresAt: number
+): Promise<void> {
+  try {
+    const action = await context.ui.dialog.select({
+      title: 'QR code unavailable',
+      options: [{ title: 'Copy pairing link', value: 'copy' }]
+    });
+    if (action !== 'copy') return;
+    if (Date.now() >= expiresAt) {
+      context.ui.toast.show({
+        message: 'Pairing link expired. Run /zero-trust again.',
+        variant: 'error'
+      });
+      return;
+    }
+    if (!context.renderer.copyToClipboardOSC52(pairing.url))
+      throw new Error('Clipboard unavailable');
+    context.ui.toast.show({ message: 'Pairing link copied.', variant: 'success' });
+  } catch {
+    context.ui.toast.show({
+      message:
+        'Could not copy the pairing link. Use opencode pair --url with your public hostname.',
+      variant: 'error'
+    });
+  }
+}
 
 export async function showQrDialog(
   context: Plugin.Context,
@@ -33,11 +61,27 @@ export async function showQrDialog(
     return;
   }
   const expiresAt = started + Math.min(300, pairing.expiresIn) * 1000;
+  // Resolve the renderer module before mounting so import failures stay in this request.
+  let Panel: typeof import('./qr-panel.js').default;
+  try {
+    Panel = (await import('./qr-panel.js')).default;
+  } catch {
+    await copyPairingLink(context, pairing, expiresAt);
+    return;
+  }
   context.ui.dialog.show(() => {
-    const view = createComponent(Panel, { context, qr, columns, expiresAt, url: pairing.url });
-    return createMemo(() => {
-      const node = typeof view === 'function' ? view() : view;
-      return node === '' ? undefined : node;
+    return createComponent(ErrorBoundary, {
+      fallback: () => {
+        // Replacing the host dialog while Solid is unwinding can dispose the wrong owner.
+        queueMicrotask(() => {
+          context.ui.dialog.clear();
+          void copyPairingLink(context, pairing, expiresAt);
+        });
+        return undefined;
+      },
+      get children() {
+        return createComponent(Panel, { context, qr, columns, expiresAt, url: pairing.url });
+      }
     });
   });
   const size = columns + 2 <= 60 ? 'medium' : columns + 2 <= 88 ? 'large' : 'xlarge';

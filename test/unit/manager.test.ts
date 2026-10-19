@@ -216,6 +216,8 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
         const helper = Object.assign(new EventEmitter(), {
           pid: process.pid + 1,
           connected: true,
+          // Matches OpenCode's runtime, whose IPC channel has no unref().
+          channel: {},
           disconnect() {
             this.connected = false;
           },
@@ -240,6 +242,8 @@ for (const shutdown of ['confirmed', 'unexpected', 'uncertain'] as const) {
       );
       assert.equal((await manager.connect()).state, 'starting');
       await launch;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(manager.status().state, 'starting');
       const helper = helpers[0];
       assert.ok(helper);
       helper.emit('message', { state: 'ready', pid: process.pid + 2 });

@@ -153,7 +153,7 @@ export default function Sidebar(props: {
           controller.toggle();
         },
         children: [
-          text(() => (state.expanded ? '▼' : '▶'), true),
+          text(() => (state.expanded ? '▼' : '▶')),
           jsx('text', {
             attributes: TextAttributes.BOLD,
             get fg() {

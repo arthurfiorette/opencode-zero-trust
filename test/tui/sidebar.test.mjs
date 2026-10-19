@@ -97,17 +97,20 @@ test('cold sidebar has stable actions, hover contrast, release activation, and n
     const find = (id) => rendered.renderer.root.findDescendantById(id);
     const click = (node, button = MouseButton.LEFT) =>
       rendered.mockMouse.click(node.x + 2, node.y, button);
+    const white = RGBA.fromHex('#ffffff').toInts();
+    const arrow = find('zero-trust-sidebar-header').getChildren()[0];
+    assert.deepEqual(arrow.fg.toInts(), white, 'Collapsed arrow uses normal text color.');
     await click(find('zero-trust-sidebar-header'));
     await rendered.waitForFrame(
       (frame) => frame.includes('oc-mac.arthur.one') && frame.includes('Scan QR code')
     );
     globalThis.setInterval = setInterval;
+    assert.deepEqual(arrow.fg.toInts(), white, 'Expanded arrow uses normal text color.');
     assert.equal(issued, 0);
     const names = ['scan', 'connect', 'details', 'disconnect'];
     const actions = names.map((name) => find(`zero-trust-sidebar-${name}`));
     assert.ok(actions.every(Boolean));
     const color = (name, suffix) => find(`zero-trust-sidebar-${name}-${suffix}`).fg.toInts();
-    const white = RGBA.fromHex('#ffffff').toInts();
     const grey = RGBA.fromHex('#aaaaaa').toInts();
     for (const name of ['scan', 'details', 'disconnect']) {
       assert.deepEqual(color(name, 'icon'), white);

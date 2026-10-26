@@ -10,7 +10,7 @@
 
 <p align="center" title="OpenCode Zero Trust screenshot">
   <a href="https://github.com/arthurfiorette/opencode-zero-trust">
-    <img src="https://raw.githubusercontent.com/arthurfiorette/opencode-zero-trust/main/docs/logo.png" width="700" alt="OpenCode TUI showing a pairing QR code and the Zero Trust sidebar section" />
+    <img src="https://raw.githubusercontent.com/arthurfiorette/opencode-zero-trust/main/docs/banner-side.png" width="800" alt="OpenCode TUI showing a pairing QR code next to a phone running the same session" />
   </a>
 </p>
 
@@ -18,10 +18,12 @@
 
 Reach your local OpenCode daemon from other devices through a Cloudflare Named Tunnel, and pair them by scanning a QR code.
 
+The daemon keeps running on your computer with your files, tools, and credentials. The plugin starts a `cloudflared` connector next to it, so a hostname like `opencode-mac.example.com` reaches the daemon without open ports or a VPN, and the QR code signs your other device in to OpenCode's own web app. Pick up a session from your phone, follow an agent's progress, or reply while away from your desk.
+
+**Requirements:** a domain on Cloudflare, OpenCode V2 running as a managed service, Node.js 24.16+ installed separately, and `cloudflared` (2025.6.1+ recommended).
+
 > [!WARNING]
 > The daemon runs tools as your local user. Protect the whole hostname with a [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) application limited to trusted identities, and never use a Bypass policy. Access adds a gate in front of OpenCode's own authentication and does not replace it.
-
-**Requirements:** OpenCode V2 running as a managed service, Node.js 24.16+ installed separately, and `cloudflared` (2025.6.1+ recommended).
 
 ## Get started
 
@@ -35,7 +37,7 @@ Reach your local OpenCode daemon from other devices through a Cloudflare Named T
 
    On Windows, protect the credentials file and its directory with NTFS ACLs instead of `chmod`. Create one tunnel and one hostname per computer. Remotely-managed tunnel tokens are not supported.
 
-2. Create a Cloudflare Access application for the hostname you will use.
+2. Create a self-hosted [Cloudflare Access application](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) for the hostname you will use, with an Allow policy limited to your own identity. Every request to the hostname passes through it before reaching OpenCode.
 
 3. Add the plugin to `~/.config/opencode/opencode.json` (or `$XDG_CONFIG_HOME/opencode/opencode.json`; `.jsonc` also works):
 
@@ -55,7 +57,7 @@ Reach your local OpenCode daemon from other devices through a Cloudflare Named T
 
 4. Restart the daemon with `opencode service restart` and open a project.
 
-5. Click **Scan QR code** in the Zero Trust sidebar, or run `/zero-trust`, and scan it from your other device.
+5. Click **Scan QR code** in the Zero Trust sidebar, or run `/zero-trust`, and scan it from your other device. It signs in to Access, pairs, and opens OpenCode's web app connected to this daemon. See [PWA](#pwa) to keep it on your home screen.
 
 The plugin owns the connector. Do not run `cloudflared tunnel run` or install another connector service for the same tunnel.
 

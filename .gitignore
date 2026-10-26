@@ -10,3 +10,4 @@ coverage
 .wrangler
 .DS_Store
 .serena
+docs/tmp

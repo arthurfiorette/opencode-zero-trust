@@ -60,7 +60,7 @@
     "@arthurfiorette/biomejs-config": "^2.0.1",
     "@biomejs/biome": "^2.5.14",
     "@opencode/sdk": "2.0.32",
-    "@opentui/core": "0.5.17",
+    "@opentui/core": "0.6.8",
     "@opentui/solid": "0.5.17",
     "@types/http-proxy": "^1.17.17",
     "@types/node": "^24.13.6",

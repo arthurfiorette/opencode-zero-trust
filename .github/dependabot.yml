@@ -8,6 +8,9 @@ updates:
       opencode:
         patterns:
           - '@opencode/*'
+      opentui:
+        patterns:
+          - '@opentui/*'
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -10,17 +10,17 @@ pnpm build
 pnpm check
 ```
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm build` | Compile ESM and TypeScript declarations into `dist/`. |
-| `pnpm format` | Apply the shared Biome configuration. |
-| `pnpm lint-ci` | Check formatting and lint rules without writing files. |
-| `pnpm test-types` | Typecheck source and tests. |
-| `pnpm test` | Run configuration, lifecycle, and terminal-command unit tests. |
-| `pnpm test:integration` | Exercise the plugin in an isolated real OpenCode SDK host. |
-| `pnpm test:tui` | Mount the compiled sidebar through the public slot API using OpenTUI's headless renderer. |
-| `pnpm test:package` | Pack, install, and smoke-test the compiled package. |
-| `pnpm check` | Run lint, typechecks, tests, build, and package verification. |
+| Command                 | Purpose                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm build`            | Compile ESM and TypeScript declarations into `dist/`.                                     |
+| `pnpm format`           | Apply the shared Biome configuration.                                                     |
+| `pnpm lint-ci`          | Check formatting and lint rules without writing files.                                    |
+| `pnpm test-types`       | Typecheck source and tests.                                                               |
+| `pnpm test`             | Run configuration, lifecycle, and terminal-command unit tests.                            |
+| `pnpm test:integration` | Exercise the plugin in an isolated real OpenCode SDK host.                                |
+| `pnpm test:tui`         | Mount the compiled sidebar through the public slot API using OpenTUI's headless renderer. |
+| `pnpm test:package`     | Pack, install, and smoke-test the compiled package.                                       |
+| `pnpm check`            | Run lint, typechecks, tests, build, and package verification.                             |
 
 SDK native parser addons may require Python and a C/C++ build toolchain. Their build scripts are approved in `pnpm-workspace.yaml`.
 

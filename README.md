@@ -18,7 +18,7 @@
 
 Reach your local OpenCode daemon from other devices through a Cloudflare Named Tunnel, and pair them by scanning a QR code.
 
-The daemon keeps running on your computer with your files, tools, and credentials. The plugin starts a `cloudflared` connector next to it, so a hostname like `opencode-mac.example.com` reaches the daemon without open ports or a VPN, and the QR code signs your other device in to OpenCode's own web app. Pick up a session from your phone, follow an agent's progress, or reply while away from your desk.
+The daemon keeps running on your computer with your local files and tools. The plugin starts a `cloudflared` connector next to it, so a hostname like `opencode-mac.example.com` reaches the daemon without open ports or a VPN, and the QR code signs your other device in to OpenCode's own web app. Open the session from your phone and keep working while away from your desk.
 
 **Requirements:** a domain on Cloudflare, OpenCode V2 running as a managed service, Node.js 24.16+ installed separately, and `cloudflared` (2025.6.1+ recommended).
 
@@ -82,7 +82,7 @@ The sidebar offers the same actions and disables them while a connection change 
 
 Configuration changes take effect only after `opencode service restart`; reloading a project keeps the daemon's existing tunnel. All projects must use the same plugin options, otherwise **Details** reports a conflict.
 
-A `ready` status means the connector is up. It does not prove that DNS, Access, or the public hostname work, so test pairing, live session updates, and the terminal from a remote device before relying on it.
+A `ready` status means the connector is up. It does not prove that DNS, Access, or the public hostname work. Test pairing and live session updates from a remote device before relying on it.
 
 ## DNS
 

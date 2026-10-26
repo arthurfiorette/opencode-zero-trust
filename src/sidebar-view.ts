@@ -1,5 +1,5 @@
 import type { Plugin } from '@opencode/plugin/tui';
-import { type BoxRenderable, MouseButton, type MouseEvent, TextAttributes } from '@opentui/core';
+import { type BoxRenderable, MouseButton, type MouseEvent } from '@opentui/core';
 import { jsx } from '@opentui/solid/jsx-runtime';
 import { createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
@@ -43,6 +43,13 @@ export default function Sidebar(props: {
     return columns <= 3 ? '.'.repeat(columns) : `${value.slice(0, columns - 3)}...`;
   });
   const connectable = createMemo(() => !!state.status && !ready());
+  // Collapsed header summary, matching the native MCP "(1 active, 1 error)" style.
+  const summary = createMemo(() => {
+    if (!state.status) return '';
+    if (operation() === 'disconnect' || state.status.state === 'stopping') return 'disconnecting';
+    if (transitioning()) return 'connecting';
+    return ready() ? 'connected' : 'disconnected';
+  });
   const transition = async (name: 'connect' | 'disconnect') => {
     if (transitioning()) return;
     setPending(name);
@@ -155,11 +162,21 @@ export default function Sidebar(props: {
         children: [
           text(() => (state.expanded ? '▼' : '▶')),
           jsx('text', {
-            attributes: TextAttributes.BOLD,
+            id: 'zero-trust-sidebar-title',
             get fg() {
               return context.theme.text.base;
             },
-            children: 'Zero Trust'
+            children: [
+              jsx('b', { children: 'Zero Trust' }),
+              jsx('span', {
+                get style() {
+                  return { fg: context.theme.text.muted };
+                },
+                get children() {
+                  return !state.expanded && summary() ? ` (${summary()})` : '';
+                }
+              })
+            ]
           })
         ]
       }),

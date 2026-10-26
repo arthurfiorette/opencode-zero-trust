@@ -100,9 +100,14 @@ test('cold sidebar has stable actions, hover contrast, release activation, and n
     const white = RGBA.fromHex('#ffffff').toInts();
     const arrow = find('zero-trust-sidebar-header').getChildren()[0];
     assert.deepEqual(arrow.fg.toInts(), white, 'Collapsed arrow uses normal text color.');
+    await rendered.waitForFrame((frame) => frame.includes('Zero Trust (connected)'));
     await click(find('zero-trust-sidebar-header'));
     await rendered.waitForFrame(
       (frame) => frame.includes('oc-mac.arthur.one') && frame.includes('Scan QR code')
+    );
+    assert.ok(
+      !rendered.captureCharFrame().includes('(connected)'),
+      'Expanded header hides the summary.'
     );
     globalThis.setInterval = setInterval;
     assert.deepEqual(arrow.fg.toInts(), white, 'Expanded arrow uses normal text color.');
@@ -201,7 +206,8 @@ test('cold sidebar has stable actions, hover contrast, release activation, and n
     assert.equal(layers[0].mode, 'global');
     assert.ok(!commands.some((command) => /refresh/i.test(command.id)));
     toggle.run();
-    await rendered.waitForFrame((frame) => !frame.includes('Connect'));
+    await rendered.waitForFrame((frame) => frame.includes('Zero Trust (disconnected)'));
+    assert.ok(!rendered.captureCharFrame().includes('Connect'));
     toggle.run();
     await rendered.waitForFrame((frame) => frame.includes('Connect'));
     assert.equal(issued, 0);
